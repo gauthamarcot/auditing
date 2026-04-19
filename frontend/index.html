@@ -12,6 +12,9 @@
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <!-- Chart.js via CDN -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Intro.js via CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/intro.js/7.2.0/introjs.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/intro.js/7.2.0/intro.min.js"></script>
 </head>
 <body>
     <div id="app" class="dashboard-layout">
@@ -63,6 +66,13 @@
                   @click="currentTab = 'queue'">
                   ✅ Validation Queue
                   <span class="badge" v-if="pendingDocs.length">{{ pendingDocs.length }}</span>
+                </button>
+                <div style="flex-grow: 1;"></div>
+                <button 
+                  class="nav-btn tour-btn-nav" 
+                  :class="{ active: currentTab === 'help' }" 
+                  @click="currentTab = 'help'">
+                  💡 Help Center
                 </button>
             </nav>
             
@@ -415,9 +425,40 @@
                     </div>
                 </div>
             </section>
+            <!-- HELP CENTER VIEW -->
+            <section v-if="currentTab === 'help'" class="view-panel help-center-view">
+                <div class="card-header">
+                    <h2>Help Center & Documentation</h2>
+                </div>
+                
+                <div class="statements-container">
+                    <div class="statement-section help-hero">
+                        <div class="icon-hero">🚀</div>
+                        <h3>Welcome to Arc Auditing</h3>
+                        <p>Your AI-powered Maker/Checker auditing suite. Automate text extraction, ledger generation, and Tally synchronization in one interface.</p>
+                        <br/>
+                        <button class="btn primary-btn tour-btn" @click="startTour">Take the Interactive Tour</button>
+                    </div>
+
+                    <div class="metrics-cards help-cards">
+                        <div class="metric-card info-card">
+                            <h4>Maker Uploads</h4>
+                            <p>Drop vendor invoices and tax certificates directly into the <strong>Ingestion Hub</strong> for OCR extraction and DB staging.</p>
+                        </div>
+                        <div class="metric-card info-card">
+                            <h4>Checker Validation</h4>
+                            <p>Supervise extracted metadata in the <strong>Validation Queue</strong> before pushing to the ledgers.</p>
+                        </div>
+                        <div class="metric-card info-card">
+                            <h4>Tally Synchronization</h4>
+                            <p>Ensure final numbers hit your balance sheet securely via automated Tally XML integrations from the <strong>Dashboard</strong>.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
         </main>
         
-        <aside class="right-sidebar">
+        <aside class="right-sidebar tour-sidebar">
             <!-- FINANCE CALCULATOR WIDGET -->
             <div class="calculator-widget">
                 <div class="calc-header">

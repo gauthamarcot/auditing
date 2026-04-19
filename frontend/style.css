@@ -691,3 +691,102 @@ h4 { color: var(--text-secondary); margin-bottom: 1rem; font-weight: 400; text-t
     text-align: right;
     width: 150px;
 }
+
+/* HELP CENTER & TOUR CSS */
+.help-center-view {
+    animation: fadeIn 0.4s ease forwards;
+}
+
+.help-hero {
+    text-align: center;
+    background: linear-gradient(145deg, rgba(22,27,34,0.8), rgba(88,166,255,0.05));
+}
+
+.help-hero h3 {
+    border-bottom: none;
+    margin-bottom: 0.5rem;
+}
+
+.icon-hero {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+}
+
+.help-hero p {
+    color: var(--text-secondary);
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.help-cards .info-card {
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.help-cards .info-card p {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+/* OVERRIDE INTRO.JS STYLES FOR DARK MODE */
+.introjs-tooltip {
+    background-color: var(--surface-color) !important;
+    backdrop-filter: var(--glass-blur) !important;
+    border: 1px solid var(--border-color) !important;
+    color: var(--text-primary) !important;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.8) !important;
+    border-radius: 12px !important;
+}
+
+.introjs-arrow.top {
+    border-bottom-color: var(--border-color) !important;
+}
+.introjs-arrow.bottom {
+    border-top-color: var(--border-color) !important;
+}
+.introjs-arrow.left {
+    border-right-color: var(--border-color) !important;
+}
+.introjs-arrow.right {
+    border-left-color: var(--border-color) !important;
+}
+
+.introjs-tooltiptext {
+    font-size: 0.95rem !important;
+    padding: 1.2rem !important;
+}
+
+.introjs-button {
+    background-color: rgba(255,255,255,0.05) !important;
+    border: 1px solid var(--border-color) !important;
+    color: var(--text-primary) !important;
+    text-shadow: none !important;
+    border-radius: 6px !important;
+    transition: background 0.2s !important;
+}
+
+.introjs-button:hover {
+    background-color: rgba(255,255,255,0.1) !important;
+}
+
+.introjs-button.introjs-nextbutton {
+    background-color: var(--accent) !important;
+    color: white !important;
+}
+
+.introjs-button.introjs-nextbutton:hover {
+    background-color: var(--accent-hover) !important;
+}
+
+.introjs-bullets ul li a {
+    background: var(--border-color) !important;
+}
+.introjs-bullets ul li a.active {
+    background: var(--accent) !important;
+}
+.introjs-helperLayer {
+    background: rgba(255,255,255,0.05) !important;
+}

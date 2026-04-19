@@ -318,6 +318,79 @@ createApp({
                 calcInput.value = "Error";
             }
         };
+
+        const startTour = () => {
+            const tour = introJs();
+            tour.setOptions({
+                steps: [
+                    {
+                        title: "Navigation",
+                        element: '.sidebar-nav',
+                        intro: "Welcome to Arc Auditing! This sidebar is your control center for navigating between different modules."
+                    },
+                    {
+                        title: "Ingestion Hub",
+                        element: '.upload-slots-grid',
+                        intro: "This is the Ingestion Hub. Drop your invoices and tax documents here to have our AI extract key data.",
+                        tabId: "ingestion"
+                    },
+                    {
+                        title: "Validation Queue",
+                        element: '.checker-view',
+                        intro: "As a Checker, you will review highlighted exceptions and approve data before it hits the ledgers.",
+                        tabId: "queue"
+                    },
+                    {
+                        title: "Books & Ledgers",
+                        element: '.ledger-view',
+                        intro: "View raw journal entries mapped directly to ledger accounts.",
+                        tabId: "ledger"
+                    },
+                    {
+                        title: "Financial Statements",
+                        element: '.statements-view',
+                        intro: "Review production-ready formatted Profit & Loss sheets and balancing Balance Sheets.",
+                        tabId: "statements"
+                    },
+                    {
+                        title: "Analytics Dashboard",
+                        element: '.analyst-view',
+                        intro: "Pull live data from Tally to generate graphs and insights.",
+                        tabId: "dashboard"
+                    },
+                    {
+                        title: "Calculator & Audit Log",
+                        element: '.tour-sidebar',
+                        intro: "Use the quick calculator for spot-checking, and view immutable audit trails."
+                    }
+                ],
+                showProgress: true,
+                showBullets: true,
+                disableInteraction: true
+            });
+
+            tour.onbeforechange(function() {
+                return new Promise((resolve) => {
+                    const step = this._introItems[this._currentStep];
+                    if (step.tabId && currentTab.value !== step.tabId) {
+                        currentTab.value = step.tabId;
+                        // Wait for Vue to process DOM updates
+                        Vue.nextTick(() => {
+                            resolve();
+                        });
+                    } else {
+                        resolve();
+                    }
+                });
+            });
+
+            tour.onexit(() => {
+                currentTab.value = 'help';
+            });
+
+            // We need to wait a tick if we initiate while not rendered
+            setTimeout(() => { tour.start(); }, 100);
+        };
         
         // Watch for tab change to render charts if moving to dashboard
         Vue.watch(currentTab, (newTab) => {
@@ -373,7 +446,8 @@ createApp({
             calcEvaluate,
             bsData,
             fetchBalanceSheet,
-            getLedgerGroup
+            getLedgerGroup,
+            startTour
         };
     }
 }).mount('#app');
