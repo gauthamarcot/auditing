@@ -4,6 +4,7 @@ from datetime import datetime
 
 class DocumentBase(BaseModel):
     vendor_name: Optional[str] = None
+    suggested_group: Optional[str] = None
     gstin: Optional[str] = None
     pan_number: Optional[str] = None
     total_amount: Optional[float] = None
@@ -57,3 +58,31 @@ class PnLSummaryResponse(BaseModel):
     indirect_expenses: float
     gross_profit: float
     net_profit: float
+
+class BalanceSheetResponse(BaseModel):
+    assets_total: float
+    assets_details: Dict[str, float]
+    liabilities_total: float
+    liabilities_details: Dict[str, float]
+    equity_total: float
+    equity_details: Dict[str, float]
+
+class TransactionResponse(BaseModel):
+    id: int
+    date: datetime
+    amount: float
+    type: str
+    voucher_type: str
+    narration: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+class LedgerResponse(BaseModel):
+    id: int
+    name: str
+    group: str
+    transactions: List[TransactionResponse] = []
+
+    class Config:
+        from_attributes = True

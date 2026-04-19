@@ -46,8 +46,12 @@ class Document(Base):
     filename = Column(String, index=True)
     status = Column(String, default="PENDING_VALIDATION") # PENDING_VALIDATION, READY_FOR_TALLY, SYNCED
     
+    # Ledger mapping
+    ledger_id = Column(Integer, ForeignKey("ledgers.id"), nullable=True)
+    
     # Extracted data
     vendor_name = Column(String, nullable=True)
+    suggested_group = Column(String, nullable=True) # E.g., "Direct Expenses"
     gstin = Column(String, nullable=True)
     pan_number = Column(String, nullable=True)
     total_amount = Column(Float, nullable=True)

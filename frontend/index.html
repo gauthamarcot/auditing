@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Autara Auditing App</title>
+    <title>Arc Auditing Software</title>
     <link rel="stylesheet" href="style.css">
     <!-- Google Fonts for premium typography -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
@@ -14,92 +14,74 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
-    <div id="app">
-        <header class="app-header">
-            <h1>Autara Automation</h1>
-            <div class="role-selector">
-                <label>Acting as: </label>
-                <select v-model="currentRole">
-                    <option value="maker">Maker (Upload)</option>
-                    <option value="checker">Checker (Approve)</option>
-                    <option value="analyst">Analyst (Dashboard)</option>
-                </select>
+    <div id="app" class="dashboard-layout">
+        
+        <!-- SIDEBAR NAVIGATION -->
+        <aside class="sidebar">
+            <div class="sidebar-brand">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" class="brand-icon">
+                    <path d="M12 2L2 7L12 12L22 7L12 2Z" fill="url(#brand-gradient)"/>
+                    <path d="M2 17L12 22L22 17M2 12L12 17L22 12" stroke="url(#brand-gradient)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <defs>
+                        <linearGradient id="brand-gradient" x1="2" y1="2" x2="22" y2="22" gradientUnits="userSpaceOnUse">
+                            <stop stop-color="#58a6ff"/>
+                            <stop offset="1" stop-color="#A371F7"/>
+                        </linearGradient>
+                    </defs>
+                </svg>
+                <h1>Arc Auditing</h1>
             </div>
-        </header>
-
-        <main>
-            <!-- MAKER VIEW -->
-            <section v-if="currentRole === 'maker'" class="view-panel maker-view">
-                <h2>Upload Document</h2>
-                <div class="upload-area" @dragover.prevent @drop.prevent="handleDrop" @click="triggerFileInput">
-                    <p v-if="!selectedFile">Drag & Drop an invoice here, or click to browse</p>
-                    <p v-else class="file-success">{{ selectedFile.name }} (Ready to Upload)</p>
-                    <input type="file" ref="fileInput" @change="handleFileSelect" style="display: none">
-                </div>
+            
+            <nav class="sidebar-nav">
                 <button 
-                  class="btn primary-btn" 
-                  :disabled="!selectedFile" 
-                  @click="uploadDocument"
-                >
-                  <span v-if="!isUploading">Extract & Validate with AI</span>
-                  <span v-else>Processing...</span>
+                  class="nav-btn" 
+                  :class="{ active: currentTab === 'dashboard' }" 
+                  @click="currentTab = 'dashboard'">
+                  📊 Dashboard
                 </button>
-            </section>
-
-            <!-- CHECKER VIEW -->
-            <section v-if="currentRole === 'checker'" class="view-panel checker-view">
-                <h2>Pending Validation Queue</h2>
-                <div v-if="pendingDocs.length === 0" class="empty-state">
-                    No documents pending validation.
-                </div>
-                <div v-else class="queue-list">
-                    <div class="queue-card" v-for="doc in pendingDocs" :key="doc.id">
-                        <div class="card-header">
-                            <h3>{{ doc.filename }}</h3>
-                            <span class="status-badge pending">Pending</span>
-                        </div>
-                        <div class="diff-view">
-                            <div class="extracted-data">
-                                <h4>Extracted Data</h4>
-                                <div class="data-field">
-                                    <label>Vendor Name:</label>
-                                    <input type="text" v-model="doc.vendor_name" disabled>
-                                </div>
-                                <div class="data-field">
-                                    <label>GSTIN:</label>
-                                    <input type="text" v-model="doc.gstin" disabled>
-                                </div>
-                                <div class="data-field">
-                                    <label>Total Amount:</label>
-                                    <input type="number" v-model="doc.total_amount" disabled>
-                                </div>
-                                <div class="data-field">
-                                    <label>Category/Tags:</label>
-                                    <span v-if="doc.missing_proofs && doc.missing_proofs.length > 0" class="error-text">
-                                        Missing: {{ doc.missing_proofs.join(', ') }}
-                                    </span>
-                                </div>
-                            </div>
-                            <div class="tax-data">
-                                <h4>Calculated Taxes</h4>
-                                <ul>
-                                    <li v-for="(val, key) in doc.calculated_taxes" :key="key">
-                                        {{ key }}: ₹{{ val }}
-                                    </li>
-                                </ul>
-                            </div>
-                        </div>
-                        <div class="card-actions">
-                            <button class="btn approve-btn" @click="approveDocument(doc.id)">Approve Data</button>
-                            <button class="btn push-btn" @click="pushToTally(doc.id)" v-if="approvedDocs.includes(doc.id)">Sync to Tally</button>
-                        </div>
+                <button 
+                  class="nav-btn" 
+                  :class="{ active: currentTab === 'ingestion' }" 
+                  @click="currentTab = 'ingestion'">
+                  📥 Ingestion Hub
+                </button>
+                <button 
+                  class="nav-btn" 
+                  :class="{ active: currentTab === 'ledger' }" 
+                  @click="currentTab = 'ledger'">
+                  📚 Books & Ledgers
+                </button>
+                <button 
+                  class="nav-btn" 
+                  :class="{ active: currentTab === 'statements' }" 
+                  @click="currentTab = 'statements'">
+                  📑 Financial Statements
+                </button>
+                <button 
+                  class="nav-btn" 
+                  :class="{ active: currentTab === 'queue' }" 
+                  @click="currentTab = 'queue'">
+                  ✅ Validation Queue
+                  <span class="badge" v-if="pendingDocs.length">{{ pendingDocs.length }}</span>
+                </button>
+            </nav>
+            
+            <div class="sidebar-footer">
+                <div class="user-profile">
+                    <div class="avatar">A</div>
+                    <div class="user-details">
+                        <span class="name">Admin User</span>
+                        <span class="role">Arc Software</span>
                     </div>
                 </div>
-            </section>
-            <!-- ANALYST VIEW -->
-            <section v-if="currentRole === 'analyst'" class="view-panel analyst-view">
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <!-- DASHBOARD VIEW -->
+            <section v-if="currentTab === 'dashboard'" class="view-panel analyst-view">
                 <div class="card-header">
-                    <h2>Cost & Profit Analytics</h2>
+                    <h2>Insights & Analytics</h2>
                     <button class="btn primary-btn sync-tally-btn" @click="triggerTallyPull" :disabled="isSyncing">
                         <span v-if="!isSyncing">Pull Data from Tally</span>
                         <span v-else>Syncing...</span>
@@ -110,7 +92,7 @@
                     Click "Pull Data from Tally" to load Analytics.
                 </div>
                 
-                <div v-else class="analytics-grid">
+                <div v-else class="analytics-wrapper">
                     <!-- Cards -->
                     <div class="metrics-cards">
                         <div class="metric-card gross-profit">
@@ -140,17 +122,347 @@
                     </div>
                 </div>
             </section>
+
+            <!-- INGESTION HUB VIEW (Maker) -->
+            <section v-if="currentTab === 'ingestion'" class="view-panel maker-view">
+                <div class="header-split">
+                    <h2>Ingestion Hub</h2>
+                    <p class="subtitle">Drag and drop documents into the exact slot for precision OCR.</p>
+                </div>
+                
+                <div class="upload-slots-grid">
+                    
+                    <!-- Slot 1: Invoices -->
+                    <div class="upload-slot" 
+                         :class="{ 'file-selected': selectedFiles['invoices'] }"
+                         @dragover.prevent @drop.prevent="(e) => handleDrop(e, 'invoices')" 
+                         @click="triggerFileInput('invoices')">
+                        <div class="slot-icon">🧾</div>
+                        <h3>Invoices</h3>
+                        <p class="slot-desc">Purchases & Sales</p>
+                        <p v-if="selectedFiles['invoices']" class="file-success">{{ selectedFiles['invoices'].name }}</p>
+                        <button class="btn primary-btn slot-btn" v-if="selectedFiles['invoices']" @click.stop="uploadDocument('invoices')">
+                           Process
+                        </button>
+                    </div>
+
+                    <!-- Slot 2: Bank Statements -->
+                    <div class="upload-slot"
+                         :class="{ 'file-selected': selectedFiles['bank'] }"
+                         @dragover.prevent @drop.prevent="(e) => handleDrop(e, 'bank')" 
+                         @click="triggerFileInput('bank')">
+                        <div class="slot-icon">🏦</div>
+                        <h3>Bank Statements</h3>
+                        <p class="slot-desc">Reconciliations</p>
+                        <p v-if="selectedFiles['bank']" class="file-success">{{ selectedFiles['bank'].name }}</p>
+                        <button class="btn primary-btn slot-btn" v-if="selectedFiles['bank']" @click.stop="uploadDocument('bank')">
+                           Process
+                        </button>
+                    </div>
+
+                    <!-- Slot 3: Tax Certificates -->
+                    <div class="upload-slot"
+                         :class="{ 'file-selected': selectedFiles['tax'] }"
+                         @dragover.prevent @drop.prevent="(e) => handleDrop(e, 'tax')" 
+                         @click="triggerFileInput('tax')">
+                        <div class="slot-icon">🏛️</div>
+                        <h3>Tax Certificates</h3>
+                        <p class="slot-desc">TDS, Form 16, GST</p>
+                        <p v-if="selectedFiles['tax']" class="file-success">{{ selectedFiles['tax'].name }}</p>
+                        <button class="btn primary-btn slot-btn" v-if="selectedFiles['tax']" @click.stop="uploadDocument('tax')">
+                           Process
+                        </button>
+                    </div>
+                </div>
+                
+                <input type="file" ref="fileInput" @change="handleFileSelect" style="display: none">
+            </section>
+
+            <!-- VALIDATION QUEUE VIEW (Checker) -->
+            <section v-if="currentTab === 'queue'" class="view-panel checker-view">
+                <h2>Validation Queue</h2>
+                <div v-if="pendingDocs.length === 0" class="empty-state">
+                    Your queue is clear! No documents pending validation.
+                </div>
+                <div v-else class="queue-list">
+                    <div class="queue-card" v-for="doc in pendingDocs" :key="doc.id">
+                        <div class="card-header">
+                            <div>
+                                <h3>{{ doc.filename }}</h3>
+                                <div class="subtitle text-meta">Type Detected: Invoice</div>
+                            </div>
+                            <span class="status-badge pending">Pending</span>
+                        </div>
+                        <div class="diff-view">
+                            <div class="extracted-data">
+                                <h4>Extracted Data</h4>
+                                <div class="data-field">
+                                    <label>Vendor Name:</label>
+                                    <input type="text" v-model="doc.vendor_name" disabled>
+                                </div>
+                                <div class="data-field">
+                                    <label>GSTIN:</label>
+                                    <input type="text" v-model="doc.gstin" disabled>
+                                </div>
+                                <div class="data-field">
+                                    <label>Total Amount:</label>
+                                    <input type="number" v-model="doc.total_amount" disabled>
+                                </div>
+                                <div class="data-field ledger-mapping">
+                                    <label>Map to Ledger Group:</label>
+                                    <select v-model="doc.selected_group" class="group-select">
+                                        <option value="Direct Expenses">Direct Expenses (COGS)</option>
+                                        <option value="Indirect Expenses">Indirect Expenses (OpEx)</option>
+                                        <option value="Direct Income">Direct Income (Revenue)</option>
+                                        <option value="Duties & Taxes">Duties & Taxes</option>
+                                        <option value="Bank Accounts">Bank Accounts</option>
+                                        <option value="Uncategorized">Uncategorized</option>
+                                    </select>
+                                    <small class="ai-suggestion" v-if="doc.suggested_group">⚡ AI Suggestion: {{ doc.suggested_group }}</small>
+                                </div>
+                                <div class="data-field">
+                                    <label>Flags & Warnings:</label>
+                                    <span v-if="doc.missing_proofs && doc.missing_proofs.length > 0" class="error-text">
+                                        Missing: {{ doc.missing_proofs.join(', ') }}
+                                    </span>
+                                    <span v-else class="success-text">None</span>
+                                </div>
+                            </div>
+                            <div class="tax-data">
+                                <h4>Calculated Taxes</h4>
+                                <ul>
+                                    <li v-for="(val, key) in doc.calculated_taxes" :key="key">
+                                        {{ key }}: ₹{{ val }}
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="card-actions">
+                            <button class="btn approve-btn" @click="approveDocument(doc.id)">Approve Data</button>
+                            <button class="btn push-btn" @click="pushToTally(doc.id)" v-if="approvedDocs.includes(doc.id)">Sync to Tally</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- FINANCIAL STATEMENTS VIEW -->
+            <section v-if="currentTab === 'statements'" class="view-panel statements-view">
+                <div class="card-header">
+                    <h2>Financial Statements</h2>
+                    <button class="btn primary-btn sync-tally-btn" @click="fetchBalanceSheet">Refresh Statements</button>
+                </div>
+
+                <div v-if="!bsData" class="empty-state">
+                    Click "Refresh Statements" or pull data from Tally to generate statements.
+                </div>
+
+                <div v-else class="statements-container">
+                    
+                    <!-- PnL Statement -->
+                    <div class="statement-section">
+                        <h3>Statement of Profit & Loss</h3>
+                        <table class="financial-statement-table">
+                            <thead>
+                                <tr>
+                                    <th>Particulars</th>
+                                    <th class="amount-col">Amount (₹)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>Revenue (Direct Income)</td>
+                                    <td class="amount-col">{{ formatCurrency(pnlData?.total_revenue || 0) }}</td>
+                                </tr>
+                                <tr>
+                                    <td>Less: Direct Expenses</td>
+                                    <td class="amount-col"></td>
+                                </tr>
+                                <tr v-for="(amount, name) in costData?.details" :key="name">
+                                    <template v-if="getLedgerGroup(name) === 'Direct Expenses'">
+                                        <td class="indent">{{ name }}</td>
+                                        <td class="amount-col">{{ formatCurrency(amount) }}</td>
+                                    </template>
+                                </tr>
+                                <tr class="subtotal-row">
+                                    <td><strong>Gross Profit</strong></td>
+                                    <td class="amount-col"><strong>{{ formatCurrency(pnlData?.gross_profit || 0) }}</strong></td>
+                                </tr>
+                                <tr>
+                                    <td>Less: Indirect Expenses</td>
+                                    <td class="amount-col"></td>
+                                </tr>
+                                <tr v-for="(amount, name) in costData?.details" :key="'ind_'+name">
+                                    <template v-if="getLedgerGroup(name) === 'Indirect Expenses'">
+                                        <td class="indent">{{ name }}</td>
+                                        <td class="amount-col">{{ formatCurrency(amount) }}</td>
+                                    </template>
+                                </tr>
+                                <tr class="total-row">
+                                    <td>Net Profit</td>
+                                    <td class="amount-col">{{ formatCurrency(pnlData?.net_profit || 0) }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Balance Sheet -->
+                    <div class="statement-section">
+                        <h3>Balance Sheet</h3>
+                        <table class="financial-statement-table">
+                            <thead>
+                                <tr>
+                                    <th>Assets</th>
+                                    <th class="amount-col">Amount (₹)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="(amount, name) in bsData.assets_details" :key="name">
+                                    <td class="indent">{{ name }}</td>
+                                    <td class="amount-col">{{ formatCurrency(amount) }}</td>
+                                </tr>
+                                <tr class="total-row">
+                                    <td>Total Assets</td>
+                                    <td class="amount-col">{{ formatCurrency(bsData.assets_total) }}</td>
+                                </tr>
+                                <tr><td colspan="2"><br/></td></tr>
+                                <tr>
+                                    <th>Liabilities & Equity</th>
+                                    <th class="amount-col">Amount (₹)</th>
+                                </tr>
+                                <tr v-for="(amount, name) in bsData.liabilities_details" :key="'liab_'+name">
+                                    <td class="indent">{{ name }}</td>
+                                    <td class="amount-col">{{ formatCurrency(amount) }}</td>
+                                </tr>
+                                <tr v-for="(amount, name) in bsData.equity_details" :key="'eq_'+name">
+                                    <td class="indent">{{ name }}</td>
+                                    <td class="amount-col">{{ formatCurrency(amount) }}</td>
+                                </tr>
+                                <tr class="total-row">
+                                    <td>Total Liabilities & Equity</td>
+                                    <td class="amount-col">{{ formatCurrency(bsData.liabilities_total + bsData.equity_total) }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                </div>
+            </section>
+
+            <!-- LEDGER VIEW -->
+            <section v-if="currentTab === 'ledger'" class="view-panel ledger-view">
+                <div class="card-header">
+                    <h2>Books & Ledgers</h2>
+                    <button class="btn push-btn" @click="fetchLedgers">
+                        Refresh Ledgers
+                    </button>
+                </div>
+                
+                <div v-if="ledgerData.length === 0" class="empty-state">
+                    No ledger data synced yet. Try pulling from Tally on the Dashboard!
+                </div>
+                
+                <div v-else class="ledger-container">
+                    <div class="ledger-group" v-for="ledger in ledgerData" :key="ledger.id">
+                        <div class="ledger-header" @click="toggleLedger(ledger.id)">
+                            <div class="ledger-info">
+                                <span class="ledger-name">{{ ledger.name }}</span>
+                                <span class="ledger-badge">{{ ledger.group }}</span>
+                            </div>
+                            <div class="ledger-summary">
+                                <span class="ledger-total">
+                                    ₹{{ formatCurrency(calculateLedgerTotal(ledger.transactions)) }}
+                                </span>
+                                <span class="toggle-icon">{{ expandedLedgers.includes(ledger.id) ? '▲' : '▼' }}</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Collapsible Transaction Data -->
+                        <div class="ledger-transactions" v-if="expandedLedgers.includes(ledger.id)">
+                            
+                            <!-- Internal Formula Bar -->
+                            <div class="formula-bar">
+                                <span class="fx-icon">ƒx</span>
+                                <input type="text" v-model="ledgerFormulas[ledger.id]" @keyup.enter="evaluateFormula(ledger.id)" placeholder="Type formula (e.g. = 50000 * 0.18) and press Enter">
+                                <span v-if="ledgerFormulaResults[ledger.id]" class="fx-result">{{ ledgerFormulaResults[ledger.id] }}</span>
+                            </div>
+
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Particulars</th>
+                                        <th>Voucher Type</th>
+                                        <th class="align-right">Debit</th>
+                                        <th class="align-right">Credit</th>
+                                        <th class="align-right">Running Balance</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="(txn, index) in computeRunningBalance(ledger.transactions)" :key="txn.id">
+                                        <td>{{ new Date(txn.date).toLocaleDateString() }}</td>
+                                        <td class="particulars-col">{{ txn.narration }}</td>
+                                        <td><span class="voucher-badge">{{ txn.voucher_type }}</span></td>
+                                        <td class="align-right debit-col">{{ txn.type === 'Debit' ? '₹' + formatCurrency(txn.amount) : '' }}</td>
+                                        <td class="align-right credit-col">{{ txn.type === 'Credit' ? '₹' + formatCurrency(txn.amount) : '' }}</td>
+                                        <td class="align-right balance-col" :class="{'negative-bal': txn.balance < 0}">
+                                            {{ txn.balance < 0 ? '-' : '' }}₹{{ formatCurrency(Math.abs(txn.balance)) }}
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                            <div v-if="ledger.transactions.length === 0" class="no-txn">No transactions booked.</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
         </main>
         
-        <!-- AUDIT LEDGER -->
-        <aside class="audit-ledger" v-if="auditLogs.length > 0">
-            <h3>Audit Ledger</h3>
-            <ul class="ledger-list">
-                <li v-for="log in auditLogs" :key="log.id">
-                    <strong>{{ log.user_id }}</strong>: {{ log.action }} <br>
-                    <small>{{ new Date(log.timestamp).toLocaleString() }}</small>
-                </li>
-            </ul>
+        <aside class="right-sidebar">
+            <!-- FINANCE CALCULATOR WIDGET -->
+            <div class="calculator-widget">
+                <div class="calc-header">
+                    <h3>Quick Calculator</h3>
+                </div>
+                <div class="calc-display">
+                    <input type="text" v-model="calcInput" readonly>
+                </div>
+                <div class="calc-keypad">
+                    <button class="calc-btn danger" @click="calcClear()">C</button>
+                    <button class="calc-btn" @click="calcAppend('(')">(</button>
+                    <button class="calc-btn" @click="calcAppend(')')">)</button>
+                    <button class="calc-btn op" @click="calcAppend('/')">÷</button>
+                    
+                    <button class="calc-btn" @click="calcAppend('7')">7</button>
+                    <button class="calc-btn" @click="calcAppend('8')">8</button>
+                    <button class="calc-btn" @click="calcAppend('9')">9</button>
+                    <button class="calc-btn op" @click="calcAppend('*')">×</button>
+                    
+                    <button class="calc-btn" @click="calcAppend('4')">4</button>
+                    <button class="calc-btn" @click="calcAppend('5')">5</button>
+                    <button class="calc-btn" @click="calcAppend('6')">6</button>
+                    <button class="calc-btn op" @click="calcAppend('-')">-</button>
+                    
+                    <button class="calc-btn" @click="calcAppend('1')">1</button>
+                    <button class="calc-btn" @click="calcAppend('2')">2</button>
+                    <button class="calc-btn" @click="calcAppend('3')">3</button>
+                    <button class="calc-btn op" @click="calcAppend('+')">+</button>
+                    
+                    <button class="calc-btn zero" @click="calcAppend('0')">0</button>
+                    <button class="calc-btn" @click="calcAppend('.')">.</button>
+                    <button class="calc-btn eq" @click="calcEvaluate()">=</button>
+                </div>
+            </div>
+
+            <!-- AUDIT LEDGER LOG -->
+            <div class="audit-ledger" v-if="auditLogs.length > 0">
+                <h3>Audit Log</h3>
+                <ul class="ledger-list">
+                    <li v-for="log in auditLogs" :key="log.id">
+                        <strong>{{ log.user_id }}</strong>: {{ log.action }} <br>
+                        <small>{{ new Date(log.timestamp).toLocaleString() }}</small>
+                    </li>
+                </ul>
+            </div>
         </aside>
     </div>
 

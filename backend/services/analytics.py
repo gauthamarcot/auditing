@@ -62,3 +62,60 @@ def calculate_pnl(db: Session, company_id: int):
         "gross_profit": gross_profit,
         "net_profit": net_profit
     }
+
+def calculate_balance_sheet(db: Session, company_id: int):
+    # Groups typically considered assets
+    asset_groups = ["Bank Accounts", "Fixed Assets"]
+    # Groups typically considered liabilities and equity
+    liability_groups = ["Sundry Creditors"]
+    equity_groups = ["Capital Account"]
+
+    # Calculate net profit to route into retained earnings
+    pnl = calculate_pnl(db, company_id)
+    retained_earnings = pnl["net_profit"]
+
+    # Calculate Ledger balances
+    ledgers = db.query(Ledger).filter(Ledger.company_id == company_id).all()
+    
+    assets_total = 0.0
+    assets_details = {}
+    
+    liabilities_total = 0.0
+    liabilities_details = {}
+    
+    equity_total = 0.0
+    equity_details = {"Retained Earnings (Net Profit)": retained_earnings}
+
+    for ledger in ledgers:
+        # Calculate balance. Using Debit - Credit for Assets, Credit - Debit for Liab/Equity
+        balance = 0.0
+        for txn in ledger.transactions:
+            if txn.type == "Debit":
+                balance += txn.amount
+            elif txn.type == "Credit":
+                balance -= txn.amount
+                
+        if ledger.group in asset_groups:
+            # Assets normally have debit balances
+            assets_details[ledger.name] = balance
+            assets_total += balance
+        elif ledger.group in liability_groups:
+            # Liab normally have credit balances
+            liabilities_details[ledger.name] = -balance
+            liabilities_total += -balance
+        elif ledger.group in equity_groups:
+            # Equity normally has credit balance
+            equity_details[ledger.name] = -balance
+            equity_total += -balance
+
+    # Add retained earnings to equity total
+    equity_total += retained_earnings
+
+    return {
+        "assets_total": assets_total,
+        "assets_details": assets_details,
+        "liabilities_total": liabilities_total,
+        "liabilities_details": liabilities_details,
+        "equity_total": equity_total,
+        "equity_details": equity_details
+    }

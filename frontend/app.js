@@ -1,12 +1,19 @@
-const { createApp, ref, onMounted, onUnmounted } = Vue;
+const { createApp, ref, reactive, onMounted, onUnmounted } = Vue;
 
-// Change port below if your FastAPI dev server runs differently (e.g. 8000)
-const API_BASE = "http://127.0.0.1:8000/api/documents";
+const API_BASE = "http://127.0.0.1:8001/api/documents";
 
 createApp({
     setup() {
-        const currentRole = ref("maker");
-        const selectedFile = ref(null);
+        const currentTab = ref("ingestion"); // dashboard, ingestion, queue
+        
+        // Multi-slot file tracking
+        const selectedFiles = reactive({
+            invoices: null,
+            bank: null,
+            tax: null
+        });
+        const currentActiveSlot = ref(null); // Tracks which slot triggered the file input
+        
         const isUploading = ref(false);
         const pendingDocs = ref([]);
         const approvedDocs = ref([]);
@@ -16,14 +23,27 @@ createApp({
         // Analytics state
         const pnlData = ref(null);
         const costData = ref(null);
+        const bsData = ref(null);
         const isSyncing = ref(false);
         let chartsInstance = [];
+
+        // Ledger View state
+        const ledgerData = ref([]);
+        const expandedLedgers = ref([]);
+        const ledgerFormulas = ref({});
+        const ledgerFormulaResults = ref({});
+
+        // Calculator state
+        const calcInput = ref("");
 
         // Fetch pending documents
         const fetchPendingDocs = async () => {
             try {
                 const res = await axios.get(`${API_BASE}/pending`);
-                pendingDocs.value = res.data;
+                pendingDocs.value = res.data.map(doc => ({
+                    ...doc,
+                    selected_group: doc.suggested_group || 'Uncategorized'
+                }));
             } catch (err) {
                 console.error("Failed to fetch pending docs", err);
             }
@@ -39,7 +59,7 @@ createApp({
             }
         };
 
-        // Call both APIs frequently to simulate real-time updates for demo purposes
+        // Polling
         let pollInterval;
         onMounted(() => {
             fetchPendingDocs();
@@ -54,7 +74,8 @@ createApp({
             clearInterval(pollInterval);
         });
 
-        const triggerFileInput = () => {
+        const triggerFileInput = (slotType) => {
+            currentActiveSlot.value = slotType;
             if (fileInput.value) {
                 fileInput.value.click();
             }
@@ -62,25 +83,31 @@ createApp({
 
         const handleFileSelect = (event) => {
             const files = event.target.files;
-            if (files.length > 0) {
-                selectedFile.value = files[0];
+            if (files.length > 0 && currentActiveSlot.value) {
+                selectedFiles[currentActiveSlot.value] = files[0];
             }
+            // Reset the input so the same file can be selected again if needed
+            event.target.value = '';
+            currentActiveSlot.value = null;
         };
 
-        const handleDrop = (event) => {
+        const handleDrop = (event, slotType) => {
             const files = event.dataTransfer.files;
             if (files.length > 0) {
-                selectedFile.value = files[0];
+                selectedFiles[slotType] = files[0];
             }
         };
 
-        const uploadDocument = async () => {
-            if (!selectedFile.value) return;
+        const uploadDocument = async (slotType) => {
+            const fileToUpload = selectedFiles[slotType];
+            if (!fileToUpload) return;
+            
             isUploading.value = true;
 
             const formData = new FormData();
-            formData.append("file", selectedFile.value);
+            formData.append("file", fileToUpload);
             formData.append("maker_id", "maker_user_1");
+            formData.append("doc_type", slotType); // Pass doc_type to backend for future routing logic
 
             try {
                 await axios.post(`${API_BASE}/upload`, formData, {
@@ -88,12 +115,12 @@ createApp({
                         'Content-Type': 'multipart/form-data'
                     }
                 });
-                alert("Document uploaded and AI extraction triggered successfully!");
-                selectedFile.value = null; // reset
+                alert(`Document successfully ingested into the ${slotType} engine!`);
+                selectedFiles[slotType] = null; // reset just this slot
                 fetchPendingDocs();
                 fetchAuditLogs();
             } catch (err) {
-                alert("Failed to upload document.");
+                alert(`Failed to ingest ${slotType} document.`);
                 console.error(err);
             } finally {
                 isUploading.value = false;
@@ -101,9 +128,13 @@ createApp({
         };
 
         const approveDocument = async (id) => {
+            const doc = pendingDocs.value.find(d => d.id === id);
+            
             try {
                 const formData = new FormData();
                 formData.append("checker_id", "checker_user_1");
+                formData.append("ledger_group", doc.selected_group);
+                
                 await axios.post(`${API_BASE}/${id}/approve`, formData);
                 approvedDocs.value.push(id);
                 alert("Document Approved! Ready to sync to Tally.");
@@ -124,7 +155,7 @@ createApp({
                 fetchPendingDocs();
                 fetchAuditLogs();
             } catch (err) {
-                alert("Failed to sync to Tally. Check if local server is running mock.");
+                alert("Failed to sync to Tally.");
                 console.error(err);
             }
         };
@@ -132,7 +163,6 @@ createApp({
         const formatCurrency = (value) => value.toLocaleString('en-IN');
 
         const renderCharts = () => {
-            // Destroy old charts to prevent overlap
             chartsInstance.forEach(chart => chart.destroy());
             chartsInstance = [];
 
@@ -188,11 +218,26 @@ createApp({
             }
         };
 
+        const fetchBalanceSheet = async () => {
+            try {
+                const res = await axios.get(`${API_BASE.replace('/documents', '/analytics')}/balance-sheet`);
+                bsData.value = res.data;
+            } catch (err) {
+                console.error("Failed to load balance sheet", err);
+            }
+        };
+
+        const getLedgerGroup = (name) => {
+            const ledger = ledgerData.value.find(l => l.name === name);
+            return ledger ? ledger.group : 'Unknown';
+        };
+
         const triggerTallyPull = async () => {
             isSyncing.value = true;
             try {
                 await axios.post(`${API_BASE.replace('/documents', '/analytics')}/tally-pull`);
                 fetchAnalytics();
+                fetchLedgers(); // Refresh ledgers automatically
                 alert("Successfully imported day book and trial balance from Tally.");
             } catch (err) {
                 alert("Failed to pull from Tally API.");
@@ -200,17 +245,103 @@ createApp({
                 isSyncing.value = false;
             }
         };
+
+        const fetchLedgers = async () => {
+            try {
+                const res = await axios.get(`${API_BASE.replace('/documents', '/analytics')}/ledgers`);
+                ledgerData.value = res.data;
+            } catch (err) {
+                console.error("Failed to load ledgers", err);
+            }
+        };
+
+        const toggleLedger = (id) => {
+            if (expandedLedgers.value.includes(id)) {
+                expandedLedgers.value = expandedLedgers.value.filter(lId => lId !== id);
+            } else {
+                expandedLedgers.value.push(id);
+            }
+        };
         
-        // Watch for role change
-        Vue.watch(currentRole, (newRole) => {
-            if (newRole === 'analyst') {
-                if (pnlData.value) renderCharts(); // re-render if switching back
+        const evaluateFormula = (ledgerId) => {
+            try {
+                let expression = ledgerFormulas.value[ledgerId];
+                if (!expression) return;
+                
+                // Remove leading = if present
+                if (expression.startsWith('=')) {
+                    expression = expression.substring(1);
+                }
+                
+                // Extremely unsafe in standard PROD, but works for local widget mock.
+                // Replaces pure math functions without executing statements.
+                const safeEval = new Function('return ' + expression);
+                const result = safeEval();
+                ledgerFormulaResults.value[ledgerId] = '= ₹' + formatCurrency(result);
+            } catch (err) {
+                ledgerFormulaResults.value[ledgerId] = 'Error in formula';
+            }
+        };
+
+        const computeRunningBalance = (txns) => {
+            let balance = 0;
+            return txns.map(txn => {
+                if (txn.type === 'Debit') {
+                    // For typical expense/asset, debit increases natural balance. 
+                    // To keep it simple, we just do Debt - Credit mapping.
+                    balance += txn.amount;
+                } else if (txn.type === 'Credit') {
+                    balance -= txn.amount;
+                }
+                return {
+                    ...txn,
+                    balance: balance
+                };
+            });
+        };
+
+        const calculateLedgerTotal = (txns) => {
+            return txns.reduce((sum, txn) => sum + txn.amount, 0);
+        };
+        
+        // Calculator Functions
+        const calcAppend = (val) => { calcInput.value += val; };
+        const calcClear = () => { calcInput.value = ""; };
+        const calcEvaluate = () => {
+            try {
+                const safeEval = new Function('return ' + calcInput.value);
+                let res = safeEval();
+                // Check if decimal
+                if (res % 1 !== 0) res = res.toFixed(2);
+                calcInput.value = res.toString();
+            } catch (err) {
+                calcInput.value = "Error";
+            }
+        };
+        
+        // Watch for tab change to render charts if moving to dashboard
+        Vue.watch(currentTab, (newTab) => {
+            if (newTab === 'dashboard') {
+                if (pnlData.value) renderCharts(); 
+            }
+            if (newTab === 'ledger') {
+                fetchLedgers();
+            }
+            if (newTab === 'statements') {
+                fetchAnalytics();
+                fetchBalanceSheet();
+                fetchLedgers(); // Needed for getLedgerGroup mappings
             }
         });
 
+        // Initial Ledger fetch attempt
+        onMounted(() => {
+            fetchLedgers();
+        });
+
         return {
-            currentRole,
-            selectedFile,
+            currentTab,
+            selectedFiles,
             isUploading,
             pendingDocs,
             approvedDocs,
@@ -222,12 +353,27 @@ createApp({
             approveDocument,
             pushToTally,
             fileInput,
-            // New Analytics state/functions
             pnlData,
             costData,
             isSyncing,
             triggerTallyPull,
-            formatCurrency
+            formatCurrency,
+            ledgerData,
+            expandedLedgers,
+            fetchLedgers,
+            toggleLedger,
+            evaluateFormula,
+            computeRunningBalance,
+            calculateLedgerTotal,
+            ledgerFormulas,
+            ledgerFormulaResults,
+            calcInput,
+            calcAppend,
+            calcClear,
+            calcEvaluate,
+            bsData,
+            fetchBalanceSheet,
+            getLedgerGroup
         };
     }
 }).mount('#app');

@@ -5,8 +5,8 @@ from datetime import datetime
 
 from ..database import get_db
 from ..models import Company, Ledger, Transaction
-from ..schemas import CostBreakdownResponse, PnLSummaryResponse
-from ..services.analytics import calculate_cost_breakdown, calculate_pnl
+from ..schemas import CostBreakdownResponse, PnLSummaryResponse, LedgerResponse, BalanceSheetResponse
+from ..services.analytics import calculate_cost_breakdown, calculate_pnl, calculate_balance_sheet
 from ..services.tally_sync import pull_data_from_tally
 
 router = APIRouter(prefix="/api/analytics", tags=["analytics"])
@@ -66,3 +66,20 @@ def get_cost_breakdown(db: Session = Depends(get_db)):
 def get_pnl_summary(db: Session = Depends(get_db)):
     """Returns Gross and Net Profit summaries."""
     return calculate_pnl(db, COMPANY_ID)
+
+@router.get("/balance-sheet", response_model=BalanceSheetResponse)
+def get_balance_sheet(db: Session = Depends(get_db)):
+    """Returns Assets, Liabilities, and Equity."""
+    return calculate_balance_sheet(db, COMPANY_ID)
+
+@router.get("/ledgers", response_model=list[LedgerResponse])
+def get_ledgers(db: Session = Depends(get_db)):
+    """Returns all Ledgers belonging to the company, including nested transactions."""
+    from sqlalchemy.orm import selectinload
+    
+    # We use selectinload to eagerly fetch the nested transactions efficiently
+    ledgers = db.query(Ledger).filter(
+        Ledger.company_id == COMPANY_ID
+    ).options(selectinload(Ledger.transactions)).all()
+    
+    return ledgers

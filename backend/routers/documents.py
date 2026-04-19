@@ -5,11 +5,14 @@ import json
 import logging
 
 from ..database import get_db
-from ..models import Document, AuditLog
+from ..models import Document, AuditLog, Ledger, Transaction, Company
 from ..schemas import DocumentResponse, AuditLogResponse
 from ..services.ai_ocr import extract_invoice_data_with_llm
 from ..services.tax_engine import process_taxation_and_audit
 from ..services.tally_sync import push_voucher_to_tally
+
+# Using default company for demo
+COMPANY_ID = 1
 
 router = APIRouter(prefix="/api/documents", tags=["documents"])
 logger = logging.getLogger(__name__)
@@ -18,6 +21,7 @@ logger = logging.getLogger(__name__)
 async def upload_document(
     file: UploadFile = File(...),
     maker_id: str = Form("maker_user_1"),
+    doc_type: str = Form("invoices"),
     db: Session = Depends(get_db)
 ):
     """
@@ -28,7 +32,7 @@ async def upload_document(
     file_bytes = await file.read()
     
     # 1. AI OCR Extraction (mocked)
-    extracted_data = extract_invoice_data_with_llm(file_bytes)
+    extracted_data = extract_invoice_data_with_llm(file_bytes, doc_type=doc_type)
     
     # 2. Tax Logic Validation
     # In a real scenario, we might have uploaded proofs. Mocking an empty dict here.
@@ -40,6 +44,7 @@ async def upload_document(
         filename=file.filename,
         status="PENDING_VALIDATION",
         vendor_name=extracted_data.get("vendor_name"),
+        suggested_group=extracted_data.get("suggested_group"),
         gstin=extracted_data.get("gstin"),
         pan_number=extracted_data.get("pan_number"),
         total_amount=extracted_data.get("total_amount"),
@@ -77,13 +82,51 @@ def get_pending_documents(db: Session = Depends(get_db)):
     return docs
 
 @router.post("/{doc_id}/approve", response_model=DocumentResponse)
-def approve_document(doc_id: int, checker_id: str = Form("checker_user_1"), db: Session = Depends(get_db)):
-    """Maker-Checker Flow: Checker approves the document in the Diff View."""
+def approve_document(
+    doc_id: int, 
+    checker_id: str = Form("checker_user_1"), 
+    ledger_group: str = Form("Uncategorized"),
+    db: Session = Depends(get_db)
+):
+    """Maker-Checker Flow: Checker approves the document, auto-generating local Ledgers."""
+    from datetime import datetime
+
     doc = db.query(Document).filter(Document.id == doc_id).first()
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
         
     doc.status = "READY_FOR_TALLY"
+    
+    # AUTO-GENERATE LEDGER & TRANSACTION
+    if doc.vendor_name and doc.total_amount:
+        # Ensure company exists
+        company = db.query(Company).filter(Company.id == COMPANY_ID).first()
+        if not company:
+            company = Company(name="Arc Demo Corp", tally_guid="GUID-123")
+            db.add(company)
+            db.commit()
+            
+        ledger = db.query(Ledger).filter(Ledger.company_id == COMPANY_ID, Ledger.name == doc.vendor_name).first()
+        if not ledger:
+            ledger = Ledger(company_id=COMPANY_ID, name=doc.vendor_name, group=ledger_group)
+            db.add(ledger)
+            db.commit()
+            db.refresh(ledger)
+        
+        # Link document to ledger
+        doc.ledger_id = ledger.id
+            
+        txn = Transaction(
+            company_id=COMPANY_ID,
+            ledger_id=ledger.id,
+            date=datetime.utcnow(),
+            amount=doc.total_amount,
+            type="Debit", # Assuming expense uploading for this flow
+            voucher_type="Journal",
+            narration=f"Auto-ingested from {doc.filename}"
+        )
+        db.add(txn)
+    
     db.commit()
     db.refresh(doc)
     
@@ -91,8 +134,8 @@ def approve_document(doc_id: int, checker_id: str = Form("checker_user_1"), db: 
     audit_log = AuditLog(
         document_id=doc.id,
         user_id=checker_id,
-        action="APPROVED",
-        data_snapshot={"status": "READY_FOR_TALLY"}
+        action="APPROVED_AND_BOOKED",
+        data_snapshot={"status": "READY_FOR_TALLY", "booked_to_ledger": doc.vendor_name}
     )
     db.add(audit_log)
     db.commit()
