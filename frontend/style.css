@@ -64,6 +64,21 @@ body {
 
 .company-switcher {
     margin-bottom: 2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.add-company-btn {
+    font-size: 0.8rem;
+    padding: 0.5rem;
+    text-align: center;
+    border: 1px dashed var(--border-color);
+    background: transparent;
+}
+.add-company-btn:hover {
+    background: rgba(255,255,255,0.05);
+    border-color: var(--accent);
 }
 
 .company-select {
@@ -596,7 +611,43 @@ h4 { color: var(--text-secondary); margin-bottom: 1rem; font-weight: 400; text-t
     border-bottom: 1px solid var(--border-color);
 }
 
-.calc-header h3 { font-size: 1rem; margin-bottom: 1rem; font-weight: 500; }
+.calc-header h3 { font-size: 1rem; margin-bottom: 0.5rem; font-weight: 500; }
+
+.calc-tape {
+    background: #0d1117;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    height: 80px;
+    overflow-y: auto;
+    margin-bottom: 0.5rem;
+    padding: 0.5rem;
+    font-family: monospace;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    display: flex;
+    flex-direction: column-reverse; /* Latest at bottom */
+}
+
+.tape-history-item {
+    padding: 2px 0;
+    border-bottom: 1px dotted rgba(255,255,255,0.1);
+}
+
+.calc-macros {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.macro-btn {
+    background: var(--accent) !important;
+    color: white !important;
+    font-weight: 600;
+    border-radius: 6px;
+    font-size: 0.8rem !important;
+    padding: 0.4rem !important;
+}
 
 .calc-display input {
     width: 100%;

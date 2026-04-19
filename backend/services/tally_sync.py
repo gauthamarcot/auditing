@@ -47,13 +47,10 @@ def pull_data_from_tally():
     
     # Mocking transactions over the current month
     # Note: These are hardcoded changes for demo purposes to assure the equation balances.
-    from datetime import datetime
-    from dateutil.relativedelta import relativedelta
-    now = datetime.utcnow()
-    m1 = (now - relativedelta(months=3)).strftime("%Y-%m-%d")
-    m2 = (now - relativedelta(months=2)).strftime("%Y-%m-%d")
-    m3 = (now - relativedelta(months=1)).strftime("%Y-%m-%d")
-    m4 = now.strftime("%Y-%m-%d")
+    m1 = "2024-01-01"
+    m2 = "2024-02-01"
+    m3 = "2024-03-01"
+    m4 = "2024-04-01"
 
     # Mocking transactions over multiple months for MoM Trends
     mock_transactions = [
