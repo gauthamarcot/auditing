@@ -1,6 +1,20 @@
 from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
 from datetime import datetime
+import uuid
+
+class CompanyBase(BaseModel):
+    name: str
+
+class CompanyCreate(CompanyBase):
+    pass
+
+class CompanyResponse(CompanyBase):
+    id: int
+    tally_guid: str
+
+    class Config:
+        from_attributes = True
 
 class DocumentBase(BaseModel):
     vendor_name: Optional[str] = None
@@ -58,6 +72,7 @@ class PnLSummaryResponse(BaseModel):
     indirect_expenses: float
     gross_profit: float
     net_profit: float
+    monthly_trends: Optional[Dict[str, Dict[str, float]]] = None
 
 class BalanceSheetResponse(BaseModel):
     assets_total: float

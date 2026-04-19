@@ -43,6 +43,7 @@ class Document(Base):
     __tablename__ = "documents"
 
     id = Column(Integer, primary_key=True, index=True)
+    company_id = Column(Integer, ForeignKey("companies.id"), default=1)
     filename = Column(String, index=True)
     status = Column(String, default="PENDING_VALIDATION") # PENDING_VALIDATION, READY_FOR_TALLY, SYNCED
     

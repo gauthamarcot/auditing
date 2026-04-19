@@ -47,28 +47,40 @@ def pull_data_from_tally():
     
     # Mocking transactions over the current month
     # Note: These are hardcoded changes for demo purposes to assure the equation balances.
+    from datetime import datetime
+    from dateutil.relativedelta import relativedelta
+    now = datetime.utcnow()
+    m1 = (now - relativedelta(months=3)).strftime("%Y-%m-%d")
+    m2 = (now - relativedelta(months=2)).strftime("%Y-%m-%d")
+    m3 = (now - relativedelta(months=1)).strftime("%Y-%m-%d")
+    m4 = now.strftime("%Y-%m-%d")
+
+    # Mocking transactions over multiple months for MoM Trends
     mock_transactions = [
-        # PnL entries
-        {"ledger_name": "Product Sales", "amount": 800000.0, "type": "Credit"},
-        {"ledger_name": "Raw Materials A", "amount": 350000.0, "type": "Debit"},
-        {"ledger_name": "Factory Electricity", "amount": 40000.0, "type": "Debit"},
-        {"ledger_name": "Machine Maintenance", "amount": 15000.0, "type": "Debit"},
-        {"ledger_name": "Office Rent", "amount": 50000.0, "type": "Debit"},
-        {"ledger_name": "Marketing & Ads", "amount": 25000.0, "type": "Debit"},
+        # Multi-month PnL entries to generate MoM charts
+        {"ledger_name": "Product Sales", "amount": 200000.0, "type": "Credit", "date": m1},
+        {"ledger_name": "Raw Materials A", "amount": 80000.0, "type": "Debit", "date": m1},
         
-        # Balance sheet entries
+        {"ledger_name": "Product Sales", "amount": 250000.0, "type": "Credit", "date": m2},
+        {"ledger_name": "Raw Materials A", "amount": 90000.0, "type": "Debit", "date": m2},
+        
+        {"ledger_name": "Product Sales", "amount": 150000.0, "type": "Credit", "date": m3},
+        {"ledger_name": "Raw Materials A", "amount": 70000.0, "type": "Debit", "date": m3},
+        {"ledger_name": "Factory Electricity", "amount": 40000.0, "type": "Debit", "date": m3},
+        
+        {"ledger_name": "Product Sales", "amount": 800000.0, "type": "Credit", "date": m4},
+        {"ledger_name": "Raw Materials A", "amount": 350000.0, "type": "Debit", "date": m4},
+        {"ledger_name": "Machine Maintenance", "amount": 15000.0, "type": "Debit", "date": m4},
+        {"ledger_name": "Office Rent", "amount": 50000.0, "type": "Debit", "date": m4},
+        {"ledger_name": "Marketing & Ads", "amount": 25000.0, "type": "Debit", "date": m4},
+        
         # Initial Capital introduced to Bank
-        {"ledger_name": "Owner's Capital", "amount": 1000000.0, "type": "Credit"},
-        {"ledger_name": "HDFC Bank Account", "amount": 1000000.0, "type": "Debit"},
+        {"ledger_name": "Owner's Capital", "amount": 1000000.0, "type": "Credit", "date": m1},
+        {"ledger_name": "HDFC Bank Account", "amount": 1000000.0, "type": "Debit", "date": m1},
         
         # Machinery bought on credit
-        {"ledger_name": "Factory Machinery", "amount": 200000.0, "type": "Debit"},
-        {"ledger_name": "ABC Suppliers (Creditor)", "amount": 200000.0, "type": "Credit"},
-        
-        # In this simplistic model, Net Profit needs to flow to Equity. 
-        # Net Profit here is: 800k - (350k+40k+15k) - (50k+25k) = 800k - 405k - 75k = 320k
-        # This profit conceptually sits in Bank if we sold for cash, so let's add it to bank.
-        {"ledger_name": "HDFC Bank Account", "amount": 320000.0, "type": "Debit"}
+        {"ledger_name": "Factory Machinery", "amount": 200000.0, "type": "Debit", "date": m2},
+        {"ledger_name": "ABC Suppliers (Creditor)", "amount": 200000.0, "type": "Credit", "date": m2},
     ]
-    
+
     return {"ledgers": mock_ledgers, "transactions": mock_transactions}

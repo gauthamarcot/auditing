@@ -11,8 +11,7 @@ from ..services.ai_ocr import extract_invoice_data_with_llm
 from ..services.tax_engine import process_taxation_and_audit
 from ..services.tally_sync import push_voucher_to_tally
 
-# Using default company for demo
-COMPANY_ID = 1
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Query
 
 router = APIRouter(prefix="/api/documents", tags=["documents"])
 logger = logging.getLogger(__name__)
@@ -22,6 +21,7 @@ async def upload_document(
     file: UploadFile = File(...),
     maker_id: str = Form("maker_user_1"),
     doc_type: str = Form("invoices"),
+    company_id: int = Form(1),
     db: Session = Depends(get_db)
 ):
     """
@@ -41,6 +41,7 @@ async def upload_document(
     
     # Create DB Record
     db_doc = Document(
+        company_id=company_id,
         filename=file.filename,
         status="PENDING_VALIDATION",
         vendor_name=extracted_data.get("vendor_name"),
@@ -76,14 +77,15 @@ async def upload_document(
     return db_doc
 
 @router.get("/pending", response_model=List[DocumentResponse])
-def get_pending_documents(db: Session = Depends(get_db)):
+def get_pending_documents(company_id: int = Query(...), db: Session = Depends(get_db)):
     """Fetch documents waiting for Checker to Approve."""
-    docs = db.query(Document).filter(Document.status == "PENDING_VALIDATION").all()
+    docs = db.query(Document).filter(Document.status == "PENDING_VALIDATION", Document.company_id == company_id).all()
     return docs
 
 @router.post("/{doc_id}/approve", response_model=DocumentResponse)
 def approve_document(
     doc_id: int, 
+    company_id: int = Form(1),
     checker_id: str = Form("checker_user_1"), 
     ledger_group: str = Form("Uncategorized"),
     db: Session = Depends(get_db)
@@ -100,15 +102,16 @@ def approve_document(
     # AUTO-GENERATE LEDGER & TRANSACTION
     if doc.vendor_name and doc.total_amount:
         # Ensure company exists
-        company = db.query(Company).filter(Company.id == COMPANY_ID).first()
+        company = db.query(Company).filter(Company.id == company_id).first()
         if not company:
-            company = Company(name="Arc Demo Corp", tally_guid="GUID-123")
+            mock_name = "Autara Demo Corp" if company_id == 1 else "Acme Industries"
+            company = Company(id=company_id, name=mock_name, tally_guid=f"GUID-{company_id}")
             db.add(company)
             db.commit()
             
-        ledger = db.query(Ledger).filter(Ledger.company_id == COMPANY_ID, Ledger.name == doc.vendor_name).first()
+        ledger = db.query(Ledger).filter(Ledger.company_id == company_id, Ledger.name == doc.vendor_name).first()
         if not ledger:
-            ledger = Ledger(company_id=COMPANY_ID, name=doc.vendor_name, group=ledger_group)
+            ledger = Ledger(company_id=company_id, name=doc.vendor_name, group=ledger_group)
             db.add(ledger)
             db.commit()
             db.refresh(ledger)
@@ -117,7 +120,7 @@ def approve_document(
         doc.ledger_id = ledger.id
             
         txn = Transaction(
-            company_id=COMPANY_ID,
+            company_id=company_id,
             ledger_id=ledger.id,
             date=datetime.utcnow(),
             amount=doc.total_amount,

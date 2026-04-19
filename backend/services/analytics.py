@@ -55,12 +55,37 @@ def calculate_pnl(db: Session, company_id: int):
     gross_profit = total_revenue - cost_data["direct_expenses"]
     net_profit = gross_profit - cost_data["indirect_expenses"]
     
+    # Month-over-Month logic
+    monthly_trends = {}
+    all_txns = db.query(Transaction, Ledger).join(Ledger, Transaction.ledger_id == Ledger.id).filter(
+        Transaction.company_id == company_id
+    ).all()
+    
+    for txn, ledger in all_txns:
+        if not txn.date:
+            continue
+        month_key = txn.date.strftime("%Y-%m")
+        if month_key not in monthly_trends:
+            monthly_trends[month_key] = {"revenue": 0.0, "net_profit": 0.0, "direct": 0.0, "indirect": 0.0}
+            
+        amt = txn.amount
+        if ledger.group == "Direct Income" and txn.type == "Credit":
+            monthly_trends[month_key]["revenue"] += amt
+            monthly_trends[month_key]["net_profit"] += amt
+        elif ledger.group == "Direct Expenses" and txn.type == "Debit":
+            monthly_trends[month_key]["direct"] += amt
+            monthly_trends[month_key]["net_profit"] -= amt
+        elif ledger.group == "Indirect Expenses" and txn.type == "Debit":
+            monthly_trends[month_key]["indirect"] += amt
+            monthly_trends[month_key]["net_profit"] -= amt
+
     return {
         "total_revenue": total_revenue,
         "direct_expenses": cost_data["direct_expenses"],
         "indirect_expenses": cost_data["indirect_expenses"],
         "gross_profit": gross_profit,
-        "net_profit": net_profit
+        "net_profit": net_profit,
+        "monthly_trends": monthly_trends
     }
 
 def calculate_balance_sheet(db: Session, company_id: int):

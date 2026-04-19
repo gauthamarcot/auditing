@@ -6,6 +6,34 @@ createApp({
     setup() {
         const currentTab = ref("ingestion"); // dashboard, ingestion, queue
         
+        // Multi-Tenant State
+        const companies = ref([]);
+        const activeCompanyId = ref(1);
+        
+        const fetchCompanies = async () => {
+            try {
+                const res = await axios.get(`${API_BASE.replace('/documents', '/analytics')}/companies`);
+                companies.value = res.data;
+                if (companies.value.length > 0 && !companies.value.find(c => c.id === activeCompanyId.value)) {
+                    activeCompanyId.value = companies.value[0].id;
+                }
+            } catch (err) {
+                console.error("Failed to fetch companies", err);
+            }
+        };
+
+        const addCompany = async () => {
+            const name = prompt("Enter new company name:");
+            if (!name) return;
+            try {
+                const res = await axios.post(`${API_BASE.replace('/documents', '/analytics')}/companies`, { name });
+                companies.value.push(res.data);
+                activeCompanyId.value = res.data.id;
+            } catch (err) {
+                alert("Failed to add company.");
+            }
+        };
+        
         // Multi-slot file tracking
         const selectedFiles = reactive({
             invoices: null,
@@ -35,11 +63,12 @@ createApp({
 
         // Calculator state
         const calcInput = ref("");
+        const calcHistory = ref([]);
 
         // Fetch pending documents
         const fetchPendingDocs = async () => {
             try {
-                const res = await axios.get(`${API_BASE}/pending`);
+                const res = await axios.get(`${API_BASE}/pending?company_id=${activeCompanyId.value}`);
                 pendingDocs.value = res.data.map(doc => ({
                     ...doc,
                     selected_group: doc.suggested_group || 'Uncategorized'
@@ -62,6 +91,7 @@ createApp({
         // Polling
         let pollInterval;
         onMounted(() => {
+            fetchCompanies();
             fetchPendingDocs();
             fetchAuditLogs();
             pollInterval = setInterval(() => {
@@ -108,6 +138,7 @@ createApp({
             formData.append("file", fileToUpload);
             formData.append("maker_id", "maker_user_1");
             formData.append("doc_type", slotType); // Pass doc_type to backend for future routing logic
+            formData.append("company_id", activeCompanyId.value);
 
             try {
                 await axios.post(`${API_BASE}/upload`, formData, {
@@ -134,6 +165,7 @@ createApp({
                 const formData = new FormData();
                 formData.append("checker_id", "checker_user_1");
                 formData.append("ledger_group", doc.selected_group);
+                formData.append("company_id", activeCompanyId.value);
                 
                 await axios.post(`${API_BASE}/${id}/approve`, formData);
                 approvedDocs.value.push(id);
@@ -201,14 +233,46 @@ createApp({
                         options: { scales: { y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.1)' } } }, color: '#e6edf3' }
                     }));
                 }
+
+                // MoM Trends Chart
+                if (pnlData.value.monthly_trends && Object.keys(pnlData.value.monthly_trends).length > 0) {
+                    const momCtx = document.getElementById('momTrendsChart');
+                    if (momCtx) {
+                        const months = Object.keys(pnlData.value.monthly_trends).sort();
+                        const revs = months.map(m => pnlData.value.monthly_trends[m].revenue);
+                        const nps = months.map(m => pnlData.value.monthly_trends[m].net_profit);
+
+                        chartsInstance.push(new Chart(momCtx, {
+                            type: 'line',
+                            data: {
+                                labels: months,
+                                datasets: [
+                                    {
+                                        label: 'Revenue',
+                                        data: revs,
+                                        borderColor: '#A371F7',
+                                        tension: 0.3
+                                    },
+                                    {
+                                        label: 'Net Profit',
+                                        data: nps,
+                                        borderColor: '#2ea043',
+                                        tension: 0.3
+                                    }
+                                ]
+                            },
+                            options: { color: '#e6edf3', scales: { y: { grid: { color: 'rgba(255,255,255,0.1)' } }, x: { grid: { color: 'rgba(255,255,255,0.1)' } } } }
+                        }));
+                    }
+                }
             });
         };
 
         const fetchAnalytics = async () => {
             try {
                 const [pnlRes, costRes] = await Promise.all([
-                    axios.get(`${API_BASE.replace('/documents', '/analytics')}/pnl-summary`),
-                    axios.get(`${API_BASE.replace('/documents', '/analytics')}/cost-breakdown`)
+                    axios.get(`${API_BASE.replace('/documents', '/analytics')}/pnl-summary?company_id=${activeCompanyId.value}`),
+                    axios.get(`${API_BASE.replace('/documents', '/analytics')}/cost-breakdown?company_id=${activeCompanyId.value}`)
                 ]);
                 pnlData.value = pnlRes.data;
                 costData.value = costRes.data;
@@ -220,7 +284,7 @@ createApp({
 
         const fetchBalanceSheet = async () => {
             try {
-                const res = await axios.get(`${API_BASE.replace('/documents', '/analytics')}/balance-sheet`);
+                const res = await axios.get(`${API_BASE.replace('/documents', '/analytics')}/balance-sheet?company_id=${activeCompanyId.value}`);
                 bsData.value = res.data;
             } catch (err) {
                 console.error("Failed to load balance sheet", err);
@@ -235,7 +299,7 @@ createApp({
         const triggerTallyPull = async () => {
             isSyncing.value = true;
             try {
-                await axios.post(`${API_BASE.replace('/documents', '/analytics')}/tally-pull`);
+                await axios.post(`${API_BASE.replace('/documents', '/analytics')}/tally-pull?company_id=${activeCompanyId.value}`);
                 fetchAnalytics();
                 fetchLedgers(); // Refresh ledgers automatically
                 alert("Successfully imported day book and trial balance from Tally.");
@@ -248,7 +312,7 @@ createApp({
 
         const fetchLedgers = async () => {
             try {
-                const res = await axios.get(`${API_BASE.replace('/documents', '/analytics')}/ledgers`);
+                const res = await axios.get(`${API_BASE.replace('/documents', '/analytics')}/ledgers?company_id=${activeCompanyId.value}`);
                 ledgerData.value = res.data;
             } catch (err) {
                 console.error("Failed to load ledgers", err);
@@ -311,11 +375,37 @@ createApp({
             try {
                 const safeEval = new Function('return ' + calcInput.value);
                 let res = safeEval();
-                // Check if decimal
                 if (res % 1 !== 0) res = res.toFixed(2);
+                
+                // Add to tape history
+                calcHistory.value.unshift(`${calcInput.value} = ${res}`);
+                if (calcHistory.value.length > 20) {
+                    calcHistory.value.pop();
+                }
+                
                 calcInput.value = res.toString();
             } catch (err) {
                 calcInput.value = "Error";
+            }
+        };
+
+        const calcMacro = (type) => {
+            if (!pnlData.value) {
+                alert("Financials not loaded yet. Sync with Tally or go to Dashboard first.");
+                return;
+            }
+            if (type === 'GP%') {
+                const rev = pnlData.value.total_revenue || 1;
+                const gp = pnlData.value.gross_profit || 0;
+                const pct = ((gp / rev) * 100).toFixed(2);
+                calcInput.value = pct.toString();
+                calcHistory.value.unshift(`GP Margin = ${pct}%`);
+            } else if (type === 'NP%') {
+                const rev = pnlData.value.total_revenue || 1;
+                const np = pnlData.value.net_profit || 0;
+                const pct = ((np / rev) * 100).toFixed(2);
+                calcInput.value = pct.toString();
+                calcHistory.value.unshift(`NP Margin = ${pct}%`);
             }
         };
 
@@ -400,11 +490,30 @@ createApp({
             if (newTab === 'ledger') {
                 fetchLedgers();
             }
+            if (newTab === 'queue') {
+                fetchPendingDocs(); // Ensure fresh company data whenever we look at queue
+            }
             if (newTab === 'statements') {
                 fetchAnalytics();
                 fetchBalanceSheet();
                 fetchLedgers(); // Needed for getLedgerGroup mappings
             }
+        });
+
+        // Watch activeCompanyId to instantly switch context
+        Vue.watch(activeCompanyId, () => {
+            // Re-fetch everything visible on the screen based on active tab
+            if (currentTab.value === 'dashboard' || currentTab.value === 'statements') {
+                fetchAnalytics();
+                fetchBalanceSheet();
+            }
+            if (currentTab.value === 'ledger' || currentTab.value === 'statements') {
+                fetchLedgers();
+            }
+            if (currentTab.value === 'queue') {
+                fetchPendingDocs();
+            }
+            fetchAuditLogs();
         });
 
         // Initial Ledger fetch attempt
@@ -441,13 +550,18 @@ createApp({
             ledgerFormulas,
             ledgerFormulaResults,
             calcInput,
+            calcHistory,
             calcAppend,
             calcClear,
             calcEvaluate,
+            calcMacro,
             bsData,
             fetchBalanceSheet,
             getLedgerGroup,
-            startTour
+            startTour,
+            companies,
+            activeCompanyId,
+            addCompany
         };
     }
 }).mount('#app');

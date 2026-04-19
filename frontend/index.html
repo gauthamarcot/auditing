@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Arc Auditing Software</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=2">
     <!-- Google Fonts for premium typography -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
     <!-- Vue 3 via CDN -->
@@ -33,6 +33,15 @@
                     </defs>
                 </svg>
                 <h1>Arc Auditing</h1>
+            </div>
+            
+            <div class="company-switcher">
+                <select v-model="activeCompanyId" class="company-select">
+                    <option v-for="comp in companies" :key="comp.id" :value="comp.id">
+                        👔 {{ comp.name }}
+                    </option>
+                </select>
+                <button class="btn nav-btn add-company-btn" @click="addCompany">➕ Add New Company</button>
             </div>
             
             <nav class="sidebar-nav">
@@ -128,6 +137,16 @@
                         <div class="chart-box">
                             <h4>Profit Margins</h4>
                             <canvas id="pnlMarginChart"></canvas>
+                        </div>
+                    </div>
+                    
+                    <!-- Month-over-Month Trend Line Chart -->
+                    <div class="charts-container mom-container" style="margin-top: 1rem;">
+                        <div class="chart-box" style="flex: 1;">
+                            <h4>Month-over-Month Growth (MoM)</h4>
+                            <div style="height: 300px; width: 100%;">
+                                <canvas id="momTrendsChart"></canvas>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -464,8 +483,19 @@
                 <div class="calc-header">
                     <h3>Quick Calculator</h3>
                 </div>
+                <!-- CA Rechecker Tape -->
+                <div class="calc-tape" v-if="calcHistory.length > 0">
+                    <div class="tape-history-item" v-for="(hist, index) in calcHistory" :key="index">
+                        {{ hist }}
+                    </div>
+                </div>
+                
                 <div class="calc-display">
                     <input type="text" v-model="calcInput" readonly>
+                </div>
+                <div class="calc-macros">
+                    <button class="calc-btn macro-btn" @click="calcMacro('GP%')">GP%</button>
+                    <button class="calc-btn macro-btn" @click="calcMacro('NP%')">NP%</button>
                 </div>
                 <div class="calc-keypad">
                     <button class="calc-btn danger" @click="calcClear()">C</button>
@@ -507,6 +537,6 @@
         </aside>
     </div>
 
-    <script src="app.js"></script>
+    <script src="app.js?v=2"></script>
 </body>
 </html>

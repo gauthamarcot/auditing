@@ -62,6 +62,41 @@ body {
     -webkit-text-fill-color: transparent;
 }
 
+.company-switcher {
+    margin-bottom: 2rem;
+}
+
+.company-select {
+    width: 100%;
+    padding: 0.65rem 0.8rem;
+    border-radius: 8px;
+    background: rgba(0,0,0,0.5);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    font-size: 0.95rem;
+    font-family: inherit;
+    font-weight: 500;
+    cursor: pointer;
+    outline: none;
+    transition: border-color 0.2s;
+    appearance: none;
+    /* Custom simple arrow for select */
+    background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20width%3D%2220%22%20height%3D%2220%22%20viewBox%3D%220%22%200%22%2020%22%2020%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cpath%20d%3D%22M5%208l5%205%205-5%22%20stroke%3D%22%238b949e%22%20stroke-width%3D%222%22%20fill%3D%22none%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%2F%3E%3C%2Fsvg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.7rem top 50%;
+    background-size: 1rem auto;
+}
+
+.company-select:hover {
+    border-color: var(--accent);
+}
+
+.company-select option {
+    background: var(--surface-color);
+    color: var(--text-primary);
+    padding: 10px;
+}
+
 .sidebar-nav {
     display: flex;
     flex-direction: column;
