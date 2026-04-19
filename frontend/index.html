@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Autara Auditing App</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Google Fonts for premium typography -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+    <!-- Vue 3 via CDN -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <!-- Chart.js via CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div id="app">
+        <header class="app-header">
+            <h1>Autara Automation</h1>
+            <div class="role-selector">
+                <label>Acting as: </label>
+                <select v-model="currentRole">
+                    <option value="maker">Maker (Upload)</option>
+                    <option value="checker">Checker (Approve)</option>
+                    <option value="analyst">Analyst (Dashboard)</option>
+                </select>
+            </div>
+        </header>
+
+        <main>
+            <!-- MAKER VIEW -->
+            <section v-if="currentRole === 'maker'" class="view-panel maker-view">
+                <h2>Upload Document</h2>
+                <div class="upload-area" @dragover.prevent @drop.prevent="handleDrop" @click="triggerFileInput">
+                    <p v-if="!selectedFile">Drag & Drop an invoice here, or click to browse</p>
+                    <p v-else class="file-success">{{ selectedFile.name }} (Ready to Upload)</p>
+                    <input type="file" ref="fileInput" @change="handleFileSelect" style="display: none">
+                </div>
+                <button 
+                  class="btn primary-btn" 
+                  :disabled="!selectedFile" 
+                  @click="uploadDocument"
+                >
+                  <span v-if="!isUploading">Extract & Validate with AI</span>
+                  <span v-else>Processing...</span>
+                </button>
+            </section>
+
+            <!-- CHECKER VIEW -->
+            <section v-if="currentRole === 'checker'" class="view-panel checker-view">
+                <h2>Pending Validation Queue</h2>
+                <div v-if="pendingDocs.length === 0" class="empty-state">
+                    No documents pending validation.
+                </div>
+                <div v-else class="queue-list">
+                    <div class="queue-card" v-for="doc in pendingDocs" :key="doc.id">
+                        <div class="card-header">
+                            <h3>{{ doc.filename }}</h3>
+                            <span class="status-badge pending">Pending</span>
+                        </div>
+                        <div class="diff-view">
+                            <div class="extracted-data">
+                                <h4>Extracted Data</h4>
+                                <div class="data-field">
+                                    <label>Vendor Name:</label>
+                                    <input type="text" v-model="doc.vendor_name" disabled>
+                                </div>
+                                <div class="data-field">
+                                    <label>GSTIN:</label>
+                                    <input type="text" v-model="doc.gstin" disabled>
+                                </div>
+                                <div class="data-field">
+                                    <label>Total Amount:</label>
+                                    <input type="number" v-model="doc.total_amount" disabled>
+                                </div>
+                                <div class="data-field">
+                                    <label>Category/Tags:</label>
+                                    <span v-if="doc.missing_proofs && doc.missing_proofs.length > 0" class="error-text">
+                                        Missing: {{ doc.missing_proofs.join(', ') }}
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="tax-data">
+                                <h4>Calculated Taxes</h4>
+                                <ul>
+                                    <li v-for="(val, key) in doc.calculated_taxes" :key="key">
+                                        {{ key }}: ₹{{ val }}
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="card-actions">
+                            <button class="btn approve-btn" @click="approveDocument(doc.id)">Approve Data</button>
+                            <button class="btn push-btn" @click="pushToTally(doc.id)" v-if="approvedDocs.includes(doc.id)">Sync to Tally</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            <!-- ANALYST VIEW -->
+            <section v-if="currentRole === 'analyst'" class="view-panel analyst-view">
+                <div class="card-header">
+                    <h2>Cost & Profit Analytics</h2>
+                    <button class="btn primary-btn sync-tally-btn" @click="triggerTallyPull" :disabled="isSyncing">
+                        <span v-if="!isSyncing">Pull Data from Tally</span>
+                        <span v-else>Syncing...</span>
+                    </button>
+                </div>
+                
+                <div v-if="!pnlData" class="empty-state">
+                    Click "Pull Data from Tally" to load Analytics.
+                </div>
+                
+                <div v-else class="analytics-grid">
+                    <!-- Cards -->
+                    <div class="metrics-cards">
+                        <div class="metric-card gross-profit">
+                            <h4>Gross Profit</h4>
+                            <p class="amount">₹{{ formatCurrency(pnlData.gross_profit) }}</p>
+                        </div>
+                        <div class="metric-card net-profit">
+                            <h4>Net Profit</h4>
+                            <p class="amount">₹{{ formatCurrency(pnlData.net_profit) }}</p>
+                        </div>
+                        <div class="metric-card indirect-cost">
+                            <h4>Indirect Cost Burden</h4>
+                            <p class="amount warning">₹{{ formatCurrency(pnlData.indirect_expenses) }}</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Charts -->
+                    <div class="charts-container">
+                        <div class="chart-box">
+                            <h4>Direct vs Indirect Costs</h4>
+                            <canvas id="costBreakdownChart"></canvas>
+                        </div>
+                        <div class="chart-box">
+                            <h4>Profit Margins</h4>
+                            <canvas id="pnlMarginChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+        
+        <!-- AUDIT LEDGER -->
+        <aside class="audit-ledger" v-if="auditLogs.length > 0">
+            <h3>Audit Ledger</h3>
+            <ul class="ledger-list">
+                <li v-for="log in auditLogs" :key="log.id">
+                    <strong>{{ log.user_id }}</strong>: {{ log.action }} <br>
+                    <small>{{ new Date(log.timestamp).toLocaleString() }}</small>
+                </li>
+            </ul>
+        </aside>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
